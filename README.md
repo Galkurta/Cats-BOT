@@ -24,7 +24,7 @@ This Node.js script automates interactions with the CatsAPI, a platform for mana
 3. Install the required dependencies:
 
 ```bash
-npm install axios colors
+npm install
 ```
 
 ## Configuration
