@@ -5,14 +5,15 @@ const readline = require("readline");
 
 class CatsAPI {
   constructor() {
-    this.baseURL = "https://cats-backend-wkejfn-production.up.railway.app";
-    this.totalBalance = 0;
+    this.baseURL = "https://cats-backend-cxblew-prod.up.railway.app";
+    this.totalCats = 0;
   }
 
   headers(authorization) {
     return {
       accept: "*/*",
-      "accept-language": "en-US,en;q=0.9",
+      "accept-language":
+        "vi-VN,vi;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5",
       authorization: `tma ${authorization}`,
       "content-type": "application/json",
       origin: "https://cats-frontend.tgapps.store",
@@ -50,60 +51,72 @@ class CatsAPI {
     return axios.post(url, {}, { headers });
   }
 
-  log(msg, type = "info") {
-    const timestamp = new Date().toLocaleTimeString();
-    switch (type) {
-      case "success":
-        console.log(`${timestamp} ${msg}`.green);
-        break;
-      case "error":
-        console.log(`${timestamp} ${msg}`.red);
-        break;
-      case "warning":
-        console.log(`${timestamp} ${msg}`.yellow);
-        break;
-      default:
-        console.log(`${timestamp} ${msg}`.blue);
-    }
-  }
-
-  async waitWithCountdown(hours) {
-    const totalSeconds = hours * 3600;
-    for (let i = totalSeconds; i >= 0; i--) {
-      const hours = Math.floor(i / 3600);
-      const minutes = Math.floor((i % 3600) / 60);
-      const seconds = i % 60;
-      readline.cursorTo(process.stdout, 0);
-      process.stdout.write(
-        `Completed all accounts. Next run in: ${hours
-          .toString()
-          .padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds
-          .toString()
-          .padStart(2, "0")}`
-      );
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    console.log("");
-  }
-
   async completeTasks(authorization) {
     try {
       const tasksResponse = await this.getTasks(authorization);
-      const incompleteTasks = tasksResponse.data.tasks.filter(
-        (task) => !task.completed
-      );
-
-      for (const task of incompleteTasks) {
-        try {
-          await this.completeTask(authorization, task.id);
-        } catch (error) {
-          // Error handling for task completion (silent)
+      const allTasks = tasksResponse.data.tasks;
+      console.log("Daily login: Done".green);
+      console.log("Task:");
+      for (const task of allTasks) {
+        const status = task.completed ? "Done" : "Pending";
+        console.log(`     ‣ ${task.title}: ${status}`.cyan);
+        if (!task.completed) {
+          try {
+            await this.completeTask(authorization, task.id);
+          } catch (error) {
+            // Error handling remains the same
+          }
         }
       }
-      this.log(`Completed all tasks`, "success");
+      console.log("All available tasks completed".green);
     } catch (error) {
-      this.log(`Error fetching task list: ${error.message}`, "error");
+      console.log(`Error fetching tasks: ${error.message}`.red);
     }
+  }
+
+  async waitWithCountdown(seconds) {
+    const startTime = Date.now();
+    const endTime = startTime + seconds * 1000;
+
+    return new Promise((resolve) => {
+      const updateCountdown = () => {
+        const now = Date.now();
+        const remainingTime = Math.max(0, endTime - now);
+        const hours = Math.floor(remainingTime / (1000 * 60 * 60));
+        const minutes = Math.floor(
+          (remainingTime % (1000 * 60 * 60)) / (1000 * 60)
+        );
+        const secs = Math.floor((remainingTime % (1000 * 60)) / 1000);
+
+        readline.cursorTo(process.stdout, 0);
+        process.stdout.write(
+          `Waiting ${hours.toString().padStart(2, "0")} Hour${
+            hours !== 1 ? "s" : ""
+          } ` +
+            `${minutes.toString().padStart(2, "0")} Minute${
+              minutes !== 1 ? "s" : ""
+            } ` +
+            `${secs.toString().padStart(2, "0")} Second${
+              secs !== 1 ? "s" : ""
+            } for next loop`
+        );
+
+        if (remainingTime > 0) {
+          setTimeout(updateCountdown, 1000);
+        } else {
+          console.log("\n");
+          resolve();
+        }
+      };
+
+      updateCountdown();
+    });
+  }
+
+  displaySummary() {
+    console.log(
+      `\nTotal $CATS all accounts: ${this.totalCats.toFixed(3)}`.green.bold
+    );
   }
 
   async main() {
@@ -117,29 +130,32 @@ class CatsAPI {
     const referralCode = "inWAZ8WTRR25zmFBHLNtq";
 
     while (true) {
-      this.totalBalance = 0;
-      for (let accountIndex = 0; accountIndex < data.length; accountIndex++) {
-        const authorization = data[accountIndex];
+      this.totalCats = 0;
+      for (let no = 0; no < data.length; no++) {
+        const authorization = data[no];
+
+        console.log(`\n[ Account ${no + 1} ]`.cyan.bold);
 
         try {
           await this.createUser(authorization, referralCode);
         } catch (error) {
-          // Silently handle user creation errors
+          if (!error.response?.data?.message.includes("already exist")) {
+            throw error;
+          }
         }
 
         const userInfoResponse = await this.getUserInfo(authorization);
         const userInfo = userInfoResponse.data;
-        console.log(
-          `Account ${accountIndex + 1} | ${userInfo.firstName}`.green
-        );
-        this.log(`Balance: ${userInfo.totalRewards}`);
-        this.totalBalance += parseInt(userInfo.totalRewards);
+        console.log(`Name\t: ${userInfo.firstName}`.white);
+        console.log(`Balance\t: ${userInfo.totalRewards}`.yellow);
+        this.totalCats += parseFloat(userInfo.totalRewards);
 
         await this.completeTasks(authorization);
+        console.log();
       }
 
-      this.log(`Total Balance: ${this.totalBalance}`, "success");
-      await this.waitWithCountdown(6); // Wait for 6 hours
+      this.displaySummary();
+      await this.waitWithCountdown(7 * 60 * 60); // 7 hours in seconds
     }
   }
 }
@@ -147,7 +163,7 @@ class CatsAPI {
 if (require.main === module) {
   const catsAPI = new CatsAPI();
   catsAPI.main().catch((err) => {
-    catsAPI.log(err.message, "error");
+    console.log(err.message.red);
     process.exit(1);
   });
 }
