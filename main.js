@@ -5,7 +5,7 @@ const readline = require("readline");
 
 class CatsAPI {
   constructor() {
-    this.baseURL = "https://cats-backend-cxblew-prod.up.railway.app";
+    this.baseURL = "https://api.catshouse.club";
     this.totalCats = 0;
   }
 
